@@ -16,7 +16,7 @@ public class LoginRequest {
 	@JsonProperty("correo")
 	private String correoUsuario;
 	
-	@NotNull(message = "El clave no puede ser nula")
+	@NotNull(message = "La clave no puede ser nula")
 	@NotBlank(message = "La clave es obligatoria")
 	@JsonProperty("clave")
 	private String clave;

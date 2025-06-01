@@ -23,6 +23,10 @@ public class CategoriaRestController {
         return categoriaServiceAPI.getAll();
     }
 
+    @GetMapping("/listarCategorias")
+    public ResponseEntity<List<Categoria>> listarCategorias() {
+        return new ResponseEntity<>(categoriaServiceAPI.getAll(), HttpStatus.OK);
+    }
 
     @PostMapping(value="/saveCategoria")
     public ResponseEntity<Categoria> save(@RequestBody Categoria categoria){

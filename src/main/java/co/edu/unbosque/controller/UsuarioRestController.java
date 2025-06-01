@@ -43,9 +43,22 @@ public class UsuarioRestController {
 
 	@PostMapping(value = "/saveUsuario")
 	public ResponseEntity<Usuario> save(@RequestBody Usuario usuario) {
-		Usuario obj = usuarioServiceAPI.save(usuario);
+		try {
 
-		return new ResponseEntity<Usuario>(obj, HttpStatus.OK); // 200
+			if (usuario.getClaveUsrio() == null || usuario.getClaveUsrio().isBlank()) {
+				return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+			}
+
+			String hash = HashGenerator.generarHash(usuario.getClaveUsrio());
+			usuario.setClaveUsrio(hash);
+
+			Usuario obj = usuarioServiceAPI.save(usuario);
+			return new ResponseEntity<>(obj, HttpStatus.OK);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 
 	@GetMapping(value = "/findRecord/{id}")
