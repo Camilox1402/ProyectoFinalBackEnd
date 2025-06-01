@@ -27,11 +27,13 @@ public class UsuarioRestController {
 	
     @Autowired
     private UsuarioServiceAPI usuarioServiceAPI;
+    @Autowired
     private ParametroRepository parametroRepository;
     @Autowired  
     private JwtUtil jwtUtil;
     @Autowired  
     private EmailService emailService;
+    
 
     @GetMapping(value="/getAll")
     //ResponseEntity List<Usuario> getAll(){
