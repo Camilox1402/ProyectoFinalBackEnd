@@ -24,11 +24,16 @@ public class UsuarioServiceImpl extends GenericServiceImpl<Usuario, Long> implem
 
 	@Override
 	public Optional<Usuario> findByCorreoUsuario(String correoUsario) {
-		 return usuarioRepository.findByCorreoUsuario(correoUsario);
+		return usuarioRepository.findByCorreoUsuario(correoUsario);
 	}
 
 	@Override
 	public Usuario update(Usuario usuario) {
-		return usuarioRepository.save(usuario);
+	    Usuario actualizado = usuarioRepository.save(usuario);
+	    usuarioRepository.flush();
+	    System.out.println("Estado guardado = " + actualizado.getEstado() + ", Intentos = " + actualizado.getIntentos());
+	    return actualizado;
 	}
+
+
 }

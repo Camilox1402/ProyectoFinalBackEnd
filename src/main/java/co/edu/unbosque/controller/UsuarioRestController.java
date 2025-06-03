@@ -97,43 +97,67 @@ public class UsuarioRestController {
 	public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
 		try {
 			Optional<Usuario> userOpt = usuarioServiceAPI.findByCorreoUsuario(loginRequest.getCorreoUsuario());
+
 			if (userOpt.isEmpty()) {
 				return new ResponseEntity<>("Usuario no encontrado", HttpStatus.UNAUTHORIZED);
 			}
 
+			Usuario user = userOpt.get();
+			// Validar estado desde la BD directamente (BONUS)
+			if (!usuarioServiceAPI.findByCorreoUsuario(loginRequest.getCorreoUsuario())
+			        .map(Usuario::getEstado).orElse((byte) 0)
+			        .equals((byte) 1)) {
+			    return new ResponseEntity<>("Usuario bloqueado, contacte al administrador", HttpStatus.FORBIDDEN);
+			}
+
+
+
+			// 1. Validar si ya está bloqueado (independiente del tipo)
+			if (user.getEstado() == 0) {
+				return new ResponseEntity<>("Usuario bloqueado, contacte al administrador", HttpStatus.FORBIDDEN);
+			}
+
+			// 2. Validar contraseña
+			String inputPasswordHash = HashGenerator.generarHash(loginRequest.getClave());
+			if (!user.getClaveUsrio().equals(inputPasswordHash)) {
+				int nuevosIntentos = user.getIntentos() + 1;
+				user.setIntentos(nuevosIntentos);
+
+				// Bloqueo automático si supera 3 intentos (excepto admin)
+				if (nuevosIntentos >= 3 && !"1".equals(user.getIdTipoUsuario())) {
+					user.setEstado((byte) 0);
+				}
+
+				usuarioServiceAPI.update(user);
+
+				return new ResponseEntity<>(
+						nuevosIntentos >= 3 ? "Cuenta bloqueada por múltiples intentos fallidos"
+								: "Contraseña incorrecta",
+						nuevosIntentos >= 3 ? HttpStatus.FORBIDDEN : HttpStatus.UNAUTHORIZED);
+			}
+
+			// 3. Verificar admin hardcodeado (solo si clave es correcta)
 			if ("admin@gmail.com".equalsIgnoreCase(loginRequest.getCorreoUsuario())
 					&& "admin".equals(loginRequest.getClave())) {
 				return ResponseEntity.ok("1");
 			}
 
-			Usuario user = userOpt.get();
-			user.setIntentos(user.getIntentos() + 1);
+			// 4. Login exitoso: reiniciar intentos
+			user.setIntentos(0);
 			usuarioServiceAPI.update(user);
-			String inputPasswordHash;
-			try {
-				inputPasswordHash = HashGenerator.generarHash(loginRequest.getClave());
-			} catch (Exception e) {
-				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al procesar credenciales");
-			}
 
-			if (!user.getClaveUsrio().equals(inputPasswordHash)) {
-				return new ResponseEntity<>("Contraseña incorrecta", HttpStatus.UNAUTHORIZED);
-			}
-
+			// 5. Generar token
 			String token;
 			try {
 				if (user.getLoginUsrio() == null || user.getLoginUsrio().trim().isEmpty()) {
 					throw new IllegalArgumentException("El campo loginUsrio es inválido");
 				}
-
 				token = jwtUtil.generateToken(user.getLoginUsrio().trim());
 			} catch (Exception e) {
 				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
 						.body("Error al generar token de acceso.");
 			}
 
-			user.setIntentos(0);
-			usuarioServiceAPI.update(user);
 			Map<String, Object> response = new HashMap<>();
 			response.put("usuario", user);
 			response.put("token", token);
@@ -147,6 +171,7 @@ public class UsuarioRestController {
 					.body("Error interno del servidor. Detalles: " + e.getMessage());
 		}
 	}
+
 
 	@PostMapping("/debeCambiarClave/{id}")
 	public ResponseEntity<String> forzarCambioClave(@PathVariable Long id, @RequestBody String nuevaClave) {
